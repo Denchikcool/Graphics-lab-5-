@@ -4,7 +4,7 @@ using System;
 using System.Text;
 
 namespace graphic_editor_2.Models {
-    public class SafeDPoint: ForcePropertyChange, ISafe 
+    public class SafeDPoint : ForcePropertyChange, ISafe 
     {
         private double X, Y;
         private bool valid = true;
@@ -56,7 +56,11 @@ namespace graphic_editor_2.Models {
         public void Set(string str) 
         {
             var ss = str.TrimAll().Replace('.', ',').Split(separator);
-            if (ss == null || ss.Length != 2) { Upd_valid(false); return; }
+            if (ss == null || ss.Length != 2) 
+            { 
+                Upd_valid(false); 
+                return; 
+            }
 
             double a, b;
             try 
@@ -71,7 +75,8 @@ namespace graphic_editor_2.Models {
 
             if (Math.Abs(a) > 10000 || Math.Abs(b) > 10000) 
             { 
-                Upd_valid(false); return; 
+                Upd_valid(false);
+                return; 
             }
 
             X = a; Y = b;
@@ -81,7 +86,8 @@ namespace graphic_editor_2.Models {
         {
             get 
             { 
-                Re_check(); return X + separator + Y; 
+                Re_check(); 
+                return X + separator + Y; 
             }
             set 
             {
@@ -92,7 +98,7 @@ namespace graphic_editor_2.Models {
 
         public IBrush Color
         { 
-            get => valid ? Brushes.BlueViolet : Brushes.Red; 
+            get => valid ? Brushes.LightGray : Brushes.Red; 
         }
     }
 }

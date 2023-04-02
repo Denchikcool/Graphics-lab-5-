@@ -1,11 +1,13 @@
 ﻿using Avalonia;
 using Avalonia.Controls.Shapes;
 using Avalonia.Media;
+using System;
 using System.Collections.Generic;
 using static graphic_editor_2.Models.Shapes.PropsN;
+using graphic_editor_2.ViewModels;
 
-namespace graphic_editor_2.Models.Shapes {
-    public class Shape1_Line: IShape {
+namespace graphic_editor_2.Models.Shapes { 
+    public class Shape1_Line : IShape {
         private static readonly PropsN[] props = new[] 
         { 
             PName, PStartDot, PEndDot, PColor, PThickness 
@@ -59,10 +61,6 @@ namespace graphic_editor_2.Models.Shapes {
             {
                 return false;
             }
-            if (@line.Name == null || !@line.Name.StartsWith("sn_"))
-            {
-                return false;
-            }
             if (@line.Stroke == null)
             {
                 return false;
@@ -76,8 +74,6 @@ namespace graphic_editor_2.Models.Shapes {
             {
                 return false;
             }
-
-            map.SetProp(PName, @line.Name[3..]);
 
             @start.Set(@line.StartPoint);
             @end.Set(@line.EndPoint);
@@ -142,6 +138,29 @@ namespace graphic_editor_2.Models.Shapes {
                 Stroke = @color,
                 StrokeThickness = @thickness
             };
+        }
+        public Point? GetPos(Shape shape)
+        {
+            if (shape is not Line @line)
+            {
+                return null;
+            }
+            else return (line.StartPoint + line.EndPoint) / 2;
+        }
+        public bool SetPos(Shape shape, int x, int y)
+        {
+            var old = GetPos(shape);
+            if (old == null)
+            {
+                return false;
+            }
+
+            var line = (Line)shape;
+            Point delta = new Point(x, y) - (Point)old;
+            line.StartPoint += delta;
+            line.EndPoint += delta;
+
+            return true;
         }
     }
 }

@@ -1,11 +1,16 @@
 ﻿using Avalonia;
 using Avalonia.Controls.Shapes;
+using Avalonia.Collections;
+using DynamicData;
+using graphic_editor_2.ViewModels;
 using Avalonia.Media;
 using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
 using static graphic_editor_2.Models.Shapes.PropsN;
 
 namespace graphic_editor_2.Models.Shapes {
-    public class Shape2_BreakedLine: IShape 
+    public class Shape2_BreakedLine : IShape 
     {
         private static readonly PropsN[] props = new[] 
         { 
@@ -51,10 +56,6 @@ namespace graphic_editor_2.Models.Shapes {
             {
                 return false;
             }
-            if (@polyline.Name == null || !@polyline.Name.StartsWith("sn_"))
-            {
-                return false;
-            }
             if (@polyline.Stroke == null)
             {
                 return false;
@@ -64,8 +65,6 @@ namespace graphic_editor_2.Models.Shapes {
             {
                 return false;
             }
-
-            map.SetProp(PName, @polyline.Name[3..]);
 
             @dots.Set((Points) @polyline.Points);
 
@@ -123,6 +122,32 @@ namespace graphic_editor_2.Models.Shapes {
                 Stroke = @color,
                 StrokeThickness = @thickness
             };
+        }
+        public Point? GetPos(Shape shape)
+        {
+            if (shape is not Polyline @polyline)
+            {
+                return null;
+            }
+            Point sum = new();
+            foreach (var pos in @polyline.Points) sum += pos;
+            return sum / @polyline.Points.Count;
+        }
+        public bool SetPos(Shape shape, int x, int y)
+        {
+            var old = GetPos(shape);
+            if (old == null)
+            {
+                return false;
+            }
+
+            var polyline = (Polyline)shape;
+            Point delta = new Point(x, y) - (Point)old;
+            Points upd = new();
+            for (int i = 0; i < polyline.Points.Count; i++) upd.Add(polyline.Points[i] + delta);
+            polyline.Points = upd;
+
+            return true;
         }
     }
 }

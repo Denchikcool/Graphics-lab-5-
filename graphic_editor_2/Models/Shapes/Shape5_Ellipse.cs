@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using static graphic_editor_2.Models.Shapes.PropsN;
 
 namespace graphic_editor_2.Models.Shapes {
-    public class Shape5_Ellipse: IShape {
+    public class Shape5_Ellipse : IShape {
         private static readonly PropsN[] props = new[] 
         { 
             PName, PCenterDot, PHorizDiagonal, PVertDiagonal, PColor, PThickness, PFillColor 
@@ -73,10 +73,6 @@ namespace graphic_editor_2.Models.Shapes {
             {
                 return false;
             }
-            if (@ellipse.Name == null || !@ellipse.Name.StartsWith("sn_"))
-            {
-                return false;
-            }
             if (@ellipse.Stroke == null || @ellipse.Fill == null)
             {
                 return false;
@@ -95,7 +91,6 @@ namespace graphic_editor_2.Models.Shapes {
                 return false;
             }
 
-            map.SetProp(PName, @ellipse.Name[3]);
 
             short w = (short) @ellipse.Width;
             short h = (short) @ellipse.Height;
@@ -177,6 +172,29 @@ namespace graphic_editor_2.Models.Shapes {
                 Fill = @fillColor,
                 StrokeThickness = @thickness
             };
+        }
+        public Point? GetPos(Shape shape)
+        {
+            if (shape is not Ellipse @ellipse)
+            {
+                return null;
+            }
+            Point pos = new(@ellipse.Margin.Left, @ellipse.Margin.Top);
+            return pos + new Point(@ellipse.Width, @ellipse.Height) / 2;
+        }
+        public bool SetPos(Shape shape, int x, int y)
+        {
+            var old = GetPos(shape);
+            if (old == null)
+            {
+                return false;
+            }
+
+            var ellipse = (Ellipse)shape;
+            Point delta = new Point(x, y) - (Point)old;
+            ellipse.Margin = new Thickness(ellipse.Margin.Left + delta.X, ellipse.Margin.Top + delta.Y);
+
+            return true;
         }
     }
 }

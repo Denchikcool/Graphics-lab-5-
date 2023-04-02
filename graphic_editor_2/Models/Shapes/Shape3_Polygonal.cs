@@ -1,11 +1,12 @@
 ﻿using Avalonia;
 using Avalonia.Controls.Shapes;
 using Avalonia.Media;
+using Avalonia.Collections;
 using System.Collections.Generic;
 using static graphic_editor_2.Models.Shapes.PropsN;
 
 namespace graphic_editor_2.Models.Shapes {
-    public class Shape3_Polygonal: IShape 
+    public class Shape3_Polygonal : IShape 
     {
         private static readonly PropsN[] props = new[] 
         { 
@@ -56,10 +57,6 @@ namespace graphic_editor_2.Models.Shapes {
             {
                 return false;
             }
-            if (@polygon.Name == null || !@polygon.Name.StartsWith("sn_"))
-            {
-                return false;
-            }
             if (@polygon.Stroke == null || @polygon.Fill == null)
             {
                 return false;
@@ -69,8 +66,6 @@ namespace graphic_editor_2.Models.Shapes {
             {
                 return false;
             }
-
-            map.SetProp(PName, @polygon.Name[3..]);
 
             @dots.Set((Points) @polygon.Points);
 
@@ -137,6 +132,32 @@ namespace graphic_editor_2.Models.Shapes {
                 Fill = @fillColor,
                 StrokeThickness = @thickness
             };
+        }
+        public Point? GetPos(Shape shape)
+        {
+            if (shape is not Polygon @polygon)
+            {
+                return null;
+            }
+            Point sum = new();
+            foreach (var pos in @polygon.Points) sum += pos;
+            return sum / @polygon.Points.Count;
+        }
+        public bool SetPos(Shape shape, int x, int y)
+        {
+            var old = GetPos(shape);
+            if (old == null)
+            {
+                return false;
+            }
+
+            var polygon = (Polygon)shape;
+            Point delta = new Point(x, y) - (Point)old;
+            Points upd = new();
+            for (int i = 0; i < polygon.Points.Count; i++) upd.Add(polygon.Points[i] + delta);
+            polygon.Points = upd;
+
+            return true;
         }
     }
 }

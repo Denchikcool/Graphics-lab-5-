@@ -1,14 +1,19 @@
-﻿using Avalonia.Controls;
+﻿using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Controls.Shapes;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using graphic_editor_2.Models.Shapes;
+using graphic_editor_2.Models;
 using graphic_editor_2.ViewModels;
 using ReactiveUI;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Windows.Input;
 using static graphic_editor_2.Models.Shapes.PropsN;
 
 namespace graphic_editor_2.Models {
@@ -60,7 +65,14 @@ namespace graphic_editor_2.Models {
             UPD = upd;
             INST = inst;
         }
-
+        private void Update()
+        {
+            UPD?.Invoke(INST);
+        }
+        private static void Update(object? me)
+        {
+            if (me != null && me is Mapper @map) @map.Update();
+        }
         private static IShape[] Shapers => new IShape[] 
         {
             new Shape1_Line(),
@@ -77,6 +89,7 @@ namespace graphic_editor_2.Models {
         public string? newName = null; 
         public short select_shaper = -1; 
         private bool update_name_lock = false;
+        public bool update_marker_lock = false;
 
         public void ChangeFigure(int n) 
         {
@@ -162,7 +175,7 @@ namespace graphic_editor_2.Models {
 
             if (preview) 
             {
-                newy.Name = "marker";
+                newy.Name = "sn_marker";
                 return newy;
             }
 
@@ -271,26 +284,23 @@ namespace graphic_editor_2.Models {
             }
         }
 
-        public Shape[]? Import(bool is_xml) 
+        public Shape[]? Import(bool is_xml, object? content = null) 
         {
             string name = is_xml ? "Export.xml" : "Export.json";
-            if (!File.Exists("../../../" + name)) 
-            { 
-                Log.Write(name + " не найдено"); 
-                return null; 
+            if (content == null) 
+            {
+                if (!File.Exists("../../../" + name)) { Log.Write(name + " не обнаружен"); return null; }
+
+                var data = File.ReadAllText("../../../" + name);
+
+                content = is_xml ? Utils.Xml2obj(data) : Utils.Json2obj(data);
             }
 
-            var data = File.ReadAllText("../../../" + name);
-
-            var json = is_xml ? Utils.Xml2obj(data) : Utils.Json2obj(data);
-            if (json is not List<object?> @list) 
-            { 
-                Log.Write("В начале " + name + " не список"); 
-                return null; 
-            }
+            if (content is not List<object?> @list) { Log.Write("В начале " + name + " не список"); return null; }
 
             List<Shape> res = new();
             Clear();
+
 
             foreach (object? item in @list) 
             {
@@ -325,8 +335,14 @@ namespace graphic_editor_2.Models {
                 }
 
                 if (@dict.TryGetValue("transform", out object? tform))
-                    if (tform is not Dictionary<string, object?> @dict2) Log.Write("У одной из фигур при импорте transform - не словарь");
-                    else Transformation.Import(newy, @dict2);
+                    if (tform is not Dictionary<string, object?> @dict2)
+                    {
+                        Log.Write("У одной из фигур при импорте transform - не словарь");
+                    }
+                    else
+                    {
+                        Transformation.Import(newy, @dict2);
+                    }
                 AddShape(newy, shapeName);
 
                 res.Add(newy);
@@ -351,16 +367,23 @@ namespace graphic_editor_2.Models {
                 yeah = shaper.Load(this, shape);
                 if (yeah) 
                 {
-                    tformer.Disassemble(shape);
-                    update_name_lock = true;
-                    select_shaper = n;
-                    Update();
-                    update_name_lock = false;
                     break;
                 }
                 n++;
             }
-            if (!yeah) Log.Write("Не удалось распаковать фигуру");
+            if (yeah)
+            {
+                if (shape.Name != null && shape.Name.StartsWith("sn_")) SetProp(PName, shape.Name[3..]);
+                tformer.Disassemble(shape);
+                update_name_lock = true;
+                select_shaper = n;
+                Update();
+                update_name_lock = false;
+            }
+            else
+            {
+                Log.Write("Не удалось открыть фигуру");
+            }
         }
 
         public ShapeListBoxItem? ShapeTap(string name) 
@@ -383,16 +406,160 @@ namespace graphic_editor_2.Models {
             return null;
         }
 
-        private void Update() 
+        public void WheelMove(Shape shape, double move)
         {
-            UPD?.Invoke(INST);
-        }
-        private static void Update(object? me) 
-        {
-            if (me != null && me is Mapper @map)
+            var scale = Transformation.GetScale(shape);
+            move = move < 0 ? 1.1 : 1 / 1.1;
+            scale.ScaleX *= move;
+            scale.ScaleY *= move;
+
+            if ((shape.Name ?? "") == "sn_marker")
             {
-                @map.Update();
+                tformer.scaleTransform.Set(scale.ScaleX, scale.ScaleY);
+                select_shaper = -2;
+                Update();
             }
+        }
+        Shape? moved_shape;
+        Point moved_pos;
+        Point shape_old_pos;
+        bool tapped = false;
+
+        public void PressShape(Shape shape, Point pos)
+        {
+            Point? old_pos = null;
+            foreach (var shaper in Shapers)
+            {
+                old_pos = shaper.GetPos(shape);
+                if (old_pos != null) break;
+            }
+            if (old_pos == null) { Log.Write("Не удалось считать позицию фигуры"); return; }
+
+            moved_shape = shape;
+            moved_pos = pos;
+            shape_old_pos = (Point)old_pos;
+            tapped = true;
+        }
+
+        public void MoveShape(Shape shape, Point pos)
+        {
+            if (moved_shape != shape) return;
+            var delta = pos - moved_pos;
+            if (delta.X == 0 && delta.Y == 0) return;
+
+            if (Math.Pow(delta.X, 2) + Math.Pow(delta.Y, 2) > 9) tapped = false;
+            var new_pos = shape_old_pos + delta;
+
+            bool yeah = false;
+            foreach (var shaper in Shapers)
+            {
+                yeah = shaper.SetPos(shape, (int)new_pos.X, (int)new_pos.Y);
+                if (yeah) break;
+            }
+            if (!yeah) { Log.Write("Не удалось переместить фигуру"); return; }
+
+            if (shape.Name == "sn_marker")
+            {
+                update_marker_lock = update_name_lock = true;
+                yeah = false;
+                foreach (var shaper in Shapers)
+                {
+                    yeah = shaper.Load(this, shape);
+                    if (yeah) break;
+                }
+                if (yeah)
+                {
+                    select_shaper = -2;
+                    Update();
+                }
+                else Log.Write("Не удалось переместить фигуру");
+                update_marker_lock = update_name_lock = false;
+            }
+        }
+
+        public ShapeListBoxItem? ReleaseShape(Shape shape, Point pos)
+        {
+            if (moved_shape != shape)
+            {
+                return null;
+            }
+            MoveShape(shape, pos);
+            moved_shape = null;
+
+            if (tapped)
+            {
+                return ShapeTap(shape.Name ?? "");
+            }
+            return null;
+        }
+
+        public void DragOver(object? sender, DragEventArgs e)
+        {
+            e.DragEffects &= DragDropEffects.Copy | DragDropEffects.Link;
+
+            if (!e.Data.Contains(DataFormats.Text) && !e.Data.Contains(DataFormats.FileNames))
+            {
+                e.DragEffects = DragDropEffects.None;
+            }
+        }
+
+        private Shape[]? GrandImport(string data)
+        {
+            object? content = null;
+
+            try 
+            { 
+                content = Utils.Json2obj(data); 
+            } 
+            catch { }
+            if (content != null)
+            {
+                return Import(false, content);
+            }
+
+            try 
+            { 
+                content = Utils.Xml2obj(data); 
+            } 
+            catch { }
+            if (content != null)
+            {
+                return Import(true, content);
+            }
+
+            Log.Write("Не получилось разпознать тип данных");
+            return null;
+        }
+
+        public Shape[]? Drop(object? sender, DragEventArgs e)
+        {
+            if (e.Data.Contains(DataFormats.Text))
+            {
+                var data = e.Data.GetText();
+                if (data != null)
+                {
+                    return GrandImport(data);
+                }
+            }
+
+            if (e.Data.Contains(DataFormats.FileNames))
+            {
+                var list = e.Data.GetFileNames();
+                if (list == null)
+                {
+                    return null;
+                }
+
+                var files = list.ToArray();
+                if (files.Length == 0)
+                {
+                    return null;
+                }
+
+                return GrandImport(File.ReadAllText(files[0]));
+            }
+
+            return null;
         }
     }
 }

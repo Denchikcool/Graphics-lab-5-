@@ -1,6 +1,11 @@
-﻿using Avalonia.Controls.Shapes;
+﻿using Avalonia;
+using Avalonia.Controls.Shapes;
 using Avalonia.Media;
+using graphic_editor_2.Models.Shapes;
+using graphic_editor_2.Models;
+using System;
 using System.Collections.Generic;
+using System.Windows.Input;
 using static graphic_editor_2.Models.Shapes.PropsN;
 
 namespace graphic_editor_2.Models.Shapes {
@@ -44,7 +49,7 @@ namespace graphic_editor_2.Models.Shapes {
 
             return new Path 
             {
-                Name = "sn|" + Utils.Base64Encode(@name) + "|" + Utils.Base64Encode(@commands.Value),
+                Name = "sn_" + @name,
                 Data = @commands.Geometry,
                 Stroke = new SolidColorBrush(Color.Parse(@color)),
                 Fill = new SolidColorBrush(Color.Parse(@fillColor)),
@@ -57,22 +62,17 @@ namespace graphic_editor_2.Models.Shapes {
             {
                 return false;
             }
-            if (@path.Name == null || !@path.Name.StartsWith("sn|")) return false;
             if (@path.Stroke == null || @path.Fill == null)
             {
                 return false;
             }
-
             if (map.GetProp(PCommands) is not SafeGeometry @commands)
             {
                 return false;
             }
 
-            var name = @path.Name.Split('|');
 
-            map.SetProp(PName, Utils.Base64Decode(name[1]));
-
-            @commands.Set(Utils.Base64Decode(name[2]));
+            @commands.Set(@path.Data.Stringify());
 
             map.SetProp(PColor, ((SolidColorBrush) @path.Stroke).Color.ToString());
             map.SetProp(PFillColor, ((SolidColorBrush) @path.Fill).Color.ToString());
@@ -94,12 +94,11 @@ namespace graphic_editor_2.Models.Shapes {
                 return null;
             }
 
-            var name = @path.Name.Split('|');
 
             return new() 
             {
-                ["name"] = Utils.Base64Decode(name[1]),
-                ["path"] = Utils.Base64Decode(name[2]),
+                ["name"] = @path.Name[3..],
+                ["path"] = @path.Data.Stringify(),
                 ["stroke"] = @path.Stroke,
                 ["fill"] = @path.Fill,
                 ["thickness"] = (int) @path.StrokeThickness
@@ -133,12 +132,58 @@ namespace graphic_editor_2.Models.Shapes {
 
             return new Path 
             {
-                Name = "sn|" + Utils.Base64Encode(@name) + "|" + Utils.Base64Encode(commands.Value),
+                Name = "sn_" + @name,
                 Data = commands.Geometry,
                 Stroke = @color,
                 Fill = @fillColor,
                 StrokeThickness = @thickness
             };
+        }
+
+        public Point? GetPos(Shape shape)
+        {
+            if (shape is not Path @path) return null;
+
+            var geom = @path.Data.Stringify().NormSplit();
+            int x = 0, y = 0, c = 0;
+            for (int i = 0; i < geom.Length; i++)
+                if (geom[i] == "M" && i + 2 < geom.Length && int.TryParse(geom[i + 1], out int @X) && int.TryParse(geom[i + 2], out int @Y))
+                {
+                    x += @X;
+                    y += @Y;
+                    c += 1;
+                }
+            return c == 0 ? new Point() : new Point(x / c, y / c);
+        }
+        public bool SetPos(Shape shape, int x, int y)
+        {
+            var old = GetPos(shape);
+            if (old == null)
+            {
+                return false;
+            }
+
+            var path = (Path)shape;
+            Point delta = new Point(x, y) - (Point)old;
+
+            var geom = path.Data.Stringify().NormSplit();
+            for (int i = 0; i < geom.Length; i++)
+                if (geom[i] == "M" && i + 2 < geom.Length && int.TryParse(geom[i + 1], out int @X) && int.TryParse(geom[i + 2], out int @Y))
+                {
+                    geom[i + 1] = (@X + delta.X).ToString();
+                    geom[i + 2] = (@Y + delta.Y).ToString();
+                }
+
+            var geom_s = string.Join(' ', geom);
+            if (geom.Length > 0 && geom[0] != "M")
+            {
+                geom_s = "M " + delta.X + " " + delta.Y + " " + geom_s;
+            }
+
+            var commands = new SafeGeometry(geom_s);
+            path.Data = commands.Geometry;
+
+            return true;
         }
     }
 }

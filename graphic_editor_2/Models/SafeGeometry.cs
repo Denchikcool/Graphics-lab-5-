@@ -1,20 +1,22 @@
 ﻿using Avalonia.Media;
+using graphic_editor_2.Models.Shapes;
+using graphic_editor_2.Models;
 using System;
 
 namespace graphic_editor_2.Models {
-    public class SafeGeometry: ForcePropertyChange, ISafe 
+    public class SafeGeometry : ForcePropertyChange, ISafe 
     {
-        private Geometry geom = Geometry.Parse("");
-        private string geom_str = ""; 
+        private Geometry objGeometry = new ReadingShapes();
         private bool valid = true;
         private readonly Action<object?>? hook;
         private readonly object? inst;
         public SafeGeometry(string init, Action<object?>? hook = null, object? inst = null) {
-            this.hook = hook; this.inst = inst;
+            this.hook = hook; 
+            this.inst = inst;
             Set(init);
             if (!valid) throw new FormatException("Неверный формат инициализации SafeGeometry: " + init);
         }
-        public Geometry Geometry => geom;
+        public Geometry Geometry => objGeometry;
 
         private void Upd_valid(bool v) 
         {
@@ -35,15 +37,15 @@ namespace graphic_editor_2.Models {
             Geometry data;
             try 
             {
-                data = Geometry.Parse(str);
+                data = Geometry.MyParse(str);
             } 
             catch 
             { 
-                Upd_valid(false); return; 
+                Upd_valid(false); 
+                return; 
             }
 
-            geom = data;
-            geom_str = str;
+            objGeometry = data;
             Upd_valid(true);
         }
 
@@ -51,7 +53,8 @@ namespace graphic_editor_2.Models {
         {
             get 
             { 
-                Re_check(); return geom_str; 
+                Re_check(); 
+                return objGeometry.Stringify();
             }
             set 
             {
@@ -62,7 +65,7 @@ namespace graphic_editor_2.Models {
 
         public IBrush Color 
         { 
-            get => valid ? Brushes.BlueViolet : Brushes.Red; 
+            get => valid ? Brushes.LightGray : Brushes.Red; 
         }
     }
 }

@@ -1,8 +1,10 @@
 ﻿using Avalonia.Controls.Shapes;
 using System;
 using System.Collections.Generic;
+using Avalonia;
 
 namespace graphic_editor_2.Models.Shapes {
+
     public enum PropsN 
     {
         PName, PColor, PFillColor, PThickness,
@@ -13,12 +15,14 @@ namespace graphic_editor_2.Models.Shapes {
 
         public string Name { get; }
         public PropsN[] Props { get; }
-        
 
-        public Shape? Build(Mapper map);
         public bool Load(Mapper map, Shape shape);
-
-        public Dictionary<string, object?>? Export(Shape shape);
+        public Shape? Build(Mapper map);
         public Shape? Import(Dictionary<string, object?> data);
+        public bool SetPos(Shape shape, int x, int y);
+        public Dictionary<string, object?>? Export(Shape shape);
+        
+        public Point? GetPos(Shape shape);
+        
     }
 }

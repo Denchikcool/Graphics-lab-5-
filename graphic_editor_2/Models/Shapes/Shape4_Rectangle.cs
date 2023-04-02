@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using static graphic_editor_2.Models.Shapes.PropsN;
 
 namespace graphic_editor_2.Models.Shapes {
-    public class Shape4_Rectangle: IShape 
+    public class Shape4_Rectangle : IShape 
     {
         private static readonly PropsN[] props = new[] 
         { 
@@ -72,10 +72,6 @@ namespace graphic_editor_2.Models.Shapes {
             {
                 return false;
             }
-            if (@rect.Name == null || !@rect.Name.StartsWith("sn_"))
-            {
-                return false;
-            }
             if (@rect.Stroke == null || @rect.Fill == null)
             {
                 return false;
@@ -94,7 +90,6 @@ namespace graphic_editor_2.Models.Shapes {
                 return false;
             }
 
-            map.SetProp(PName, @rect.Name[3..]);
 
             @start.Set(new Point(@rect.Margin.Left, @rect.Margin.Top));
             @width.Set((short) @rect.Width);
@@ -174,6 +169,29 @@ namespace graphic_editor_2.Models.Shapes {
                 Fill = @fillColor,
                 StrokeThickness = @thickness
             };
+        }
+        public Point? GetPos(Shape shape)
+        {
+            if (shape is not Rectangle @rect)
+            {
+                return null;
+            }
+            Point pos = new(@rect.Margin.Left, @rect.Margin.Top);
+            return pos + new Point(@rect.Width, @rect.Height) / 2;
+        }
+        public bool SetPos(Shape shape, int x, int y)
+        {
+            var old = GetPos(shape);
+            if (old == null)
+            {
+                return false;
+            }
+
+            var rect = (Rectangle)shape;
+            Point delta = new Point(x, y) - (Point)old;
+            rect.Margin = new Thickness(rect.Margin.Left + delta.X, rect.Margin.Top + delta.Y);
+
+            return true;
         }
     }
 }

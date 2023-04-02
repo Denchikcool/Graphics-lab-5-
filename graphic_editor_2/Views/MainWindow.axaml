@@ -72,14 +72,19 @@
 					</ComboBox>
 					<ContentControl Grid.Row="1" Grid.ColumnSpan="2" Content="{Binding Content}"/>
 					<ContentControl Grid.Row="2" Grid.ColumnSpan="2" Content="{Binding SharedContent}"/>
-					<Button Name="buttonAdd" Command="{Binding Add}" Background="{Binding AddColor}" Grid.Row="3" VerticalAlignment="Bottom">Добавить</Button>
+					<Button Name="buttonAdd" Command="{Binding Add}" Grid.Row="3" VerticalAlignment="Bottom">Добавить</Button>
 					<Button Name="buttonClear" Command="{Binding Clear}" Grid.Row="3" Grid.Column="1" VerticalAlignment="Bottom">Сброс</Button>
 				</Grid>
 			</Border>
 			<Border Grid.Column="1" Classes="b">
-				<Panel Background="AliceBlue">
+				<Panel Background="AliceBlue" DragDrop.AllowDrop="True">
 					<TextBlock Text="{Binding Logg}" IsVisible="{Binding ServiceVisible}"/>
-					<Canvas Name="canvas" Cursor="Hand" Tapped="CanvasTap"/>
+					<Canvas Name="canvas" Cursor="Hand"/>
+          <Grid Background="#aeee" RowDefinitions="*,50*,*" ColumnDefinitions="*,50*,*" IsVisible="{Binding DropboxVisible}">
+            <Border Grid.Row="1" Grid.Column="1" BorderThickness="2" BorderBrush="blue">
+              <TextBlock VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="48">Переместите файл сюда</TextBlock>
+            </Border>
+          </Grid>
 				</Panel>
 			</Border>
 			<Border Grid.Column="2" Classes="b">
